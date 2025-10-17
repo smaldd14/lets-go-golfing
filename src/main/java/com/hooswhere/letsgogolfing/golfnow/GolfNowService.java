@@ -55,69 +55,24 @@ public class GolfNowService {
         return null; // TODO implement login using authService
     }
 
-
-    public List<TeeTimeSlot> fetchTeeTimes(Map<String, Object> cookies, UserPreferences userPreferences) {
-        SearchCriteria criteria = userPreferences.searchCriteria();
-
-        // Step 1: Fetch facilities within radius (general search)
-        TeeTimeSearchRequest request = buildTeeTimeSearchRequest(criteria);
-        String url = configProps.baseUrl() + configProps.endpoints().teeTimeResults();
-
-        TeeTimeResults generalResults;
-        try {
-            // It seems like cookies are unnecessary for fetching tee times and facilities, so not passing in for now
-//            HttpHeaders headers = HttpClientUtils.createGolfNowHeaders(cookies);
-            HttpEntity<TeeTimeSearchRequest> entity = new HttpEntity<>(request);
-
-            ResponseEntity<TeeTimeSearchResponse> response =
-                restTemplate.postForEntity(url, entity, TeeTimeSearchResponse.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                generalResults = response.getBody().ttResults();
-            } else {
-                throw new RuntimeException("Failed to fetch tee times: " + response.getStatusCode());
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Error fetching tee times from GolfNow API", e);
-        }
-
-        // Step 2: Filter facilities by time preferences
-        List<Facility> filteredFacilities =
-                filterFacilitiesByTimePreferences(generalResults.facilities(), criteria);
-
-        // Step 2.5: Further filter to only priority course IDs to limit API calls
-        // This prevents spamming the GolfNow API with too many requests
-        List<Facility> facilitiesToFetch = filteredFacilities;
-        if (criteria.priorityCourseIds() != null && !criteria.priorityCourseIds().isEmpty()) {
-            facilitiesToFetch = filteredFacilities.stream()
-                    .filter(facility -> criteria.priorityCourseIds().contains(facility.id()))
-                    .toList();
-
-            LOG.info("Filtered to {} priority facilities out of {} total facilities",
-                    facilitiesToFetch.size(), filteredFacilities.size());
-        } else {
-            LOG.warn("No priority course IDs specified - this will make API calls for {} facilities. " +
-                     "Consider limiting to 3-5 priority courses to avoid spamming the API.",
-                    facilitiesToFetch.size());
-            facilitiesToFetch = filteredFacilities.stream()
-                    .limit(1)  // Limit to first facilities if no priorities specified
-                    .collect(Collectors.toList());
-        }
-
-        // Step 3: For each priority facility, fetch specific tee times
-        // TODO: Consider implementing rate limiting or proxying these calls in the future
+    /**
+     * Fetches tee times for specific facilities based on given IDs and search criteria.
+     * @param cookies cookies
+     * @param facilityIds list of facility IDs to fetch tee times for
+     * @param criteria search criteria
+     * @return list of matching tee time slots
+     */
+    public List<TeeTimeSlot> fetchTeeTimesForFacilities(Map<String, Object> cookies, List<Integer> facilityIds, SearchCriteria criteria) {
         List<TeeTimeSlot> allMatchingTeeTimeSlots = new ArrayList<>();
 
-        // TODO: when comfortable, enable looping again
-        for (Facility facility : facilitiesToFetch) {
+        for (int id : facilityIds) {
             try {
-                LOG.debug("Fetching tee times for facility: {} (ID: {})", facility.name(), facility.id());
+                LOG.debug("Fetching tee times for facility ID: {}", id);
 
                 FacilityTeeTimeResponse facilityResponse =
-                        fetchFacilityTeeTimes(cookies, facility.id(), criteria);
+                        fetchFacilityTeeTimes(cookies, id, criteria);
 
-                if (facilityResponse != null &&
-                    facilityResponse.ttResults() != null &&
+                if (facilityResponse.ttResults() != null &&
                     facilityResponse.ttResults().teeTimes() != null) {
 
                     // Step 4: Filter tee times by preferences (18 holes, time range)
@@ -126,19 +81,12 @@ public class GolfNowService {
 
                     allMatchingTeeTimeSlots.addAll(filteredSlots);
 
-                    LOG.info("Found {} matching tee times at {}", filteredSlots.size(), facility.name());
+                    LOG.info("Found {} matching tee times at {}", filteredSlots.size(), id);
                 }
             } catch (Exception e) {
-                LOG.error("Error fetching tee times for facility {} ({}): {}",
-                        facility.name(), facility.id(), e.getMessage());
+                LOG.error("Error fetching tee times for facility id {}", id, e);
             }
         }
-
-        LOG.info("Total matching tee times found: {} across {} facilities",
-                allMatchingTeeTimeSlots.size(), facilitiesToFetch.size());
-
-        // TODO: Update return type to include the actual tee time slots (allMatchingTeeTimeSlots)
-        // For now, return the filtered facilities
         return allMatchingTeeTimeSlots;
     }
 
@@ -185,6 +133,13 @@ public class GolfNowService {
     }
 
     private TeeTimeSearchRequest buildTeeTimeSearchRequest(SearchCriteria criteria) {
+        String minTime = criteria.preferredTimeStart() != null
+                ? convertHourToApiValue(criteria.preferredTimeStart())
+                : "10";  // 5am default
+        String maxTime = criteria.preferredTimeEnd() != null
+                ? convertHourToApiValue(criteria.preferredTimeEnd())
+                : "42";  // 9pm+ default
+
         return new TeeTimeSearchRequest(
                 criteria.radiusMiles(),
                 criteria.latitude(),
@@ -203,10 +158,8 @@ public class GolfNowService {
                 criteria.holes(),
                 0,   // FacilityType (0 = all)
                 "all",  // RateType
-                "10", // browser does this
-                "42", // browser does this
-//                criteria.preferredTimeStart() != null ? criteria.preferredTimeStart().toString() : "6",
-//                criteria.preferredTimeEnd() != null ? criteria.preferredTimeEnd().toString() : "19",
+                minTime,
+                maxTime,
                 "Facilities.Distance",  // SortByRollup
                 "Course",  // View
                 false,  // ExcludeFeaturedFacilities
@@ -297,6 +250,13 @@ public class GolfNowService {
     }
 
     private FacilityTeeTimeRequest buildFacilityTeeTimeRequest(int facilityId, SearchCriteria criteria) {
+        String minTime = criteria.preferredTimeStart() != null
+                ? convertHourToApiValue(criteria.preferredTimeStart())
+                : "10";  // 5am default
+        String maxTime = criteria.preferredTimeEnd() != null
+                ? convertHourToApiValue(criteria.preferredTimeEnd())
+                : "42";  // 9pm+ default
+
         return new FacilityTeeTimeRequest(
                 criteria.radiusMiles(),
                 criteria.latitude(),
@@ -315,10 +275,8 @@ public class GolfNowService {
                 String.valueOf(criteria.holes()),  // Holes (string)
                 "0",  // FacilityType (string)
                 "all",  // RateType
-                "10", // browser does this
-                "42", // browser does this
-//                criteria.preferredTimeStart() != null ? criteria.preferredTimeStart().toString() : "6",
-//                criteria.preferredTimeEnd() != null ? criteria.preferredTimeEnd().toString() : "19",
+                minTime,
+                maxTime,
                 facilityId,  // FacilityId - required
                 "Date.MinDate",  // SortByRollup
                 "Grouping",  // View
@@ -380,5 +338,22 @@ public class GolfNowService {
                     }
                 })
                 .toList();
+    }
+
+    /**
+     * Converts hour (0-23) to GolfNow API time value.
+     * Formula: (hour - 5) * 2 + 10
+     * Examples: 5am=10, 6am=12, 8pm=40, 9pm=42
+     * Range: 5am (10) to 9pm+ (42)
+     * Returns "10" (5am) for hours < 5, "42" (9pm+) for hours > 21
+     */
+    private String convertHourToApiValue(int hour) {
+        if (hour < 5) {
+            return "10";  // 5am
+        }
+        if (hour > 21) {
+            return "42";  // 9pm+
+        }
+        return String.valueOf((hour - 5) * 2 + 10);
     }
 }

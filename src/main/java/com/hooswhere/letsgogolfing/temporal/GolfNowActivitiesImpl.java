@@ -28,7 +28,7 @@ public class GolfNowActivitiesImpl implements GolfNowActivities {
 
     @Override
     public List<TeeTimeSlot> searchTeeTimes(UserPreferences userPreferences) {
-        LOG.info("searching for tee times for user {}", userPreferences.email());
+        LOG.info("searching for tee times at facilities {} for user {}", userPreferences.searchCriteria().priorityCourseIds(), userPreferences.email());
         LOG.info("date: {}, time start {}, end {}, players: {}, lat/lon/radius: {}/{}/{}",
                  userPreferences.searchCriteria().searchDate(),
                  userPreferences.searchCriteria().preferredTimeStart(),
@@ -39,8 +39,10 @@ public class GolfNowActivitiesImpl implements GolfNowActivities {
                  userPreferences.searchCriteria().radiusMiles());
 
         try {
-            Map<String, Object> cookies = authService.getCookies();
-            List<TeeTimeSlot> results = golfNowService.fetchTeeTimes(cookies, userPreferences);
+//            Map<String, Object> cookies = authService.getCookies();
+            List<TeeTimeSlot> results = golfNowService.fetchTeeTimesForFacilities(Map.of(),
+                                                                                  userPreferences.searchCriteria().priorityCourseIds(),
+                                                                                  userPreferences.searchCriteria());
             return results;
         } catch (Exception e) {
             // TODO: should catch rate limit errors, bot scraping errors, and not retry in those cases.
@@ -53,9 +55,9 @@ public class GolfNowActivitiesImpl implements GolfNowActivities {
     public List<FacilitySummary> searchFacilities(UserPreferences userPreferences) {
 
         try {
-            Map<String, Object> cookies = authService.getCookies();
+//            Map<String, Object> cookies = authService.getCookies();
             List<FacilitySummary> facilities = golfNowService.searchFacilities(
-                    cookies,
+                    Map.of(),
                     userPreferences.searchCriteria());
             return facilities;
         } catch (Exception e) {
