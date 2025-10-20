@@ -1,7 +1,9 @@
 package com.hooswhere.letsgogolfing.temporal;
 
+import com.hooswhere.letsgogolfing.dto.TTMonitorRequest;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
-import com.hooswhere.letsgogolfing.dto.UserPreferences;
+import com.hooswhere.letsgogolfing.dto.UserPreferencesLegacy;
+import com.hooswhere.letsgogolfing.dto.UserSearchPreferenceDto;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.spring.boot.WorkflowImpl;
@@ -31,7 +33,8 @@ public class TeeTimeSearchWorkflowImpl implements TeeTimeSearchWorkflow {
                 .build());
 
     @Override
-    public List<TeeTimeSlot> searchTeeTimes(UserPreferences userPreferences) {
-        return golfNowActivities.searchTeeTimes(userPreferences);
+    public List<TeeTimeSlot> searchTeeTimes(TTMonitorRequest ttRequest) {
+        UserSearchPreferenceDto userPrefs = golfNowActivities.loadUserSearchPreference(ttRequest.userSearchPreferenceId());
+        return golfNowActivities.searchTeeTimes(userPrefs);
     }
 }

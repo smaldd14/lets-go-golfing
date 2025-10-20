@@ -3,8 +3,10 @@ package com.hooswhere.letsgogolfing.service;
 import com.hooswhere.letsgogolfing.dto.AuthTokens;
 import com.hooswhere.letsgogolfing.dto.AuthenticationRequest;
 import com.hooswhere.letsgogolfing.dto.FacilitySummary;
+import com.hooswhere.letsgogolfing.dto.TTMonitorRequest;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
-import com.hooswhere.letsgogolfing.dto.UserPreferences;
+import com.hooswhere.letsgogolfing.dto.UserPreferencesLegacy;
+import com.hooswhere.letsgogolfing.dto.UserSearchPreferenceDto;
 import com.hooswhere.letsgogolfing.temporal.BBAuthWorkflow;
 import com.hooswhere.letsgogolfing.temporal.FacilitySearchWorkflow;
 import com.hooswhere.letsgogolfing.temporal.TeeTimeSearchWorkflow;
@@ -24,7 +26,7 @@ public class GolfNowStarter {
         this.client = client;
     }
 
-    public List<FacilitySummary> startFacilitySearchWf(UserPreferences userPreferences) {
+    public List<FacilitySummary> startFacilitySearchWf(UserPreferencesLegacy userPreferences) {
         String wfId = UUID.randomUUID().toString();
         var stub = client.newWorkflowStub(FacilitySearchWorkflow.class,
                                           WorkflowOptions.newBuilder()
@@ -35,7 +37,7 @@ public class GolfNowStarter {
         return stub.searchFacilities(userPreferences);
     }
 
-    public List<TeeTimeSlot> startTTSearchWf(UserPreferences userPreferences) {
+    public List<TeeTimeSlot> startTTSearchWf(TTMonitorRequest ttMonitorRequest) {
         String wfId = UUID.randomUUID().toString();
         var stub = client.newWorkflowStub(TeeTimeSearchWorkflow.class,
                                           WorkflowOptions.newBuilder()
@@ -43,7 +45,7 @@ public class GolfNowStarter {
                                                   .setTaskQueue("golfnow")
                                                   .build());
         // synchronous call to the workflow method
-        return stub.searchTeeTimes(userPreferences);
+        return stub.searchTeeTimes(ttMonitorRequest);
     }
 
     public AuthTokens login() {

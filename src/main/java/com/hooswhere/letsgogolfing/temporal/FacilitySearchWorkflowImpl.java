@@ -1,7 +1,7 @@
 package com.hooswhere.letsgogolfing.temporal;
 
 import com.hooswhere.letsgogolfing.dto.FacilitySummary;
-import com.hooswhere.letsgogolfing.dto.UserPreferences;
+import com.hooswhere.letsgogolfing.dto.UserPreferencesLegacy;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.spring.boot.WorkflowImpl;
@@ -27,7 +27,7 @@ public class FacilitySearchWorkflowImpl implements FacilitySearchWorkflow {
                  )
                  .build());
     @Override
-    public List<FacilitySummary> searchFacilities(UserPreferences userPreferences) {
+    public List<FacilitySummary> searchFacilities(UserPreferencesLegacy userPreferences) {
         return golfNowActivities.searchFacilities(userPreferences);
     }
 }

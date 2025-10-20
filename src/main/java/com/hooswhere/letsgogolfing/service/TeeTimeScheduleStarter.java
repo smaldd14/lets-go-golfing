@@ -2,9 +2,10 @@ package com.hooswhere.letsgogolfing.service;
 
 import com.hooswhere.letsgogolfing.controller.LggException;
 import com.hooswhere.letsgogolfing.dto.ScheduleRequest;
-import com.hooswhere.letsgogolfing.dto.UserPreferences;
+import com.hooswhere.letsgogolfing.dto.TTMonitorRequest;
+import com.hooswhere.letsgogolfing.dto.UserPreferencesLegacy;
+import com.hooswhere.letsgogolfing.dto.UserSearchPreferenceDto;
 import com.hooswhere.letsgogolfing.temporal.TeeTimeMonitorWorkflow;
-import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.Schedule;
 import io.temporal.client.schedules.ScheduleActionStartWorkflow;
@@ -33,31 +34,25 @@ public class TeeTimeScheduleStarter {
         this.scheduleClient = scheduleClient;
     }
 
-    public ResponseEntity<String> createTeeTimeSearchSchedule(ScheduleRequest scheduleRequest) {
+    public ResponseEntity<String> createTeeTimeSearchSchedule(UserSearchPreferenceDto userPrefs) {
         // Use email as schedule ID to prevent duplicates
-        String scheduleId = generateScheduleId(scheduleRequest.email());
-
-        UserPreferences userPreferences = new UserPreferences(
-                scheduleRequest.email(),
-                scheduleRequest.paymentEnabled(),
-                scheduleRequest.searchCriteria()
-        );
+        String scheduleId = generateScheduleId(userPrefs.email());
 
         Schedule schedule = Schedule.newBuilder()
                 .setAction(
                         ScheduleActionStartWorkflow.newBuilder()
                                 .setWorkflowType(TeeTimeMonitorWorkflow.class)
-                                .setArguments(userPreferences)
+                                .setArguments(new TTMonitorRequest(userPrefs.id()))
                                 .setOptions(
                                         WorkflowOptions.newBuilder()
-                                                .setWorkflowId("ttmonitor-" + scheduleRequest.email())
+                                                .setWorkflowId("ttmonitor-" + userPrefs.email())
                                                 .setTaskQueue("golfnow")
                                                 .build())
                                 .build())
                 .setSpec(
                         ScheduleSpec.newBuilder()
                             .setIntervals(List.of(
-                                    new ScheduleIntervalSpec(scheduleRequest.interval())
+                                    new ScheduleIntervalSpec(userPrefs.scheduleInterval())
                             ))
                             .build()
                 )
@@ -71,9 +66,9 @@ public class TeeTimeScheduleStarter {
                             .build()
             );
         } catch (ScheduleAlreadyRunningException e) {
-            LOG.info("Schedule already exists for {}", scheduleRequest.email());
+            LOG.info("Schedule already exists for {}", userPrefs.email());
             LOG.trace("", e);
-            throw new LggException(HttpStatus.CONFLICT, "Schedule already exists for user: " + scheduleRequest.email(), e);
+            throw new LggException(HttpStatus.CONFLICT, "Schedule already exists for user: " + userPrefs.email(), e);
         }
 
 

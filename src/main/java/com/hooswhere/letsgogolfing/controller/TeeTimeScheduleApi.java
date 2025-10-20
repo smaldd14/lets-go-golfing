@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Validated
-@RequestMapping("/tee-times/schedules")
+@RequestMapping("/api/tee-times/schedules")
 @Tag(name = "Tee Time Schedules", description = "APIs for managing recurring tee time search schedules")
 public interface TeeTimeScheduleApi {
 

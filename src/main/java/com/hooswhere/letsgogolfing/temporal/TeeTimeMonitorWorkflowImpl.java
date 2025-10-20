@@ -1,7 +1,9 @@
 package com.hooswhere.letsgogolfing.temporal;
 
+import com.hooswhere.letsgogolfing.dto.TTMonitorRequest;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
-import com.hooswhere.letsgogolfing.dto.UserPreferences;
+import com.hooswhere.letsgogolfing.dto.UserPreferencesLegacy;
+import com.hooswhere.letsgogolfing.dto.UserSearchPreferenceDto;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.spring.boot.WorkflowImpl;
@@ -20,6 +22,8 @@ public class TeeTimeMonitorWorkflowImpl implements TeeTimeMonitorWorkflow {
     private final GolfNowActivities golfNowActivities = Workflow.newActivityStub(GolfNowActivities.class,
             ActivityOptions.newBuilder()
                     .setStartToCloseTimeout(Duration.ofSeconds(30))
+                    // TODO: imiplement heartbeating thruout activities
+                    .setHeartbeatTimeout(Duration.ofMinutes(5))
                     .setTaskQueue("golfnow")
                     .setRetryOptions(
                             RetryOptions.newBuilder()
@@ -46,29 +50,37 @@ public class TeeTimeMonitorWorkflowImpl implements TeeTimeMonitorWorkflow {
     }
 
     @Override
-    public List<TeeTimeSlot> monitorTeeTimes(UserPreferences userPreferences) {
-        logger.info("Starting tee time monitoring for user: {}", userPreferences.email());
+    public List<TeeTimeSlot> monitorTeeTimes(TTMonitorRequest ttMonitorRequest) {
+        logger.info("Starting tee time monitoring for user: {}", ttMonitorRequest.userSearchPreferenceId());
 
-        // Search for tee times
-        List<TeeTimeSlot> results = golfNowActivities.searchTeeTimes(userPreferences);
-        logger.info("Found {} tee time slots", results.size());
+        // 1. get prefs
+        UserSearchPreferenceDto userPrefs = golfNowActivities.loadUserSearchPreference(ttMonitorRequest.userSearchPreferenceId());
+        // 2. Search for tee times from GolfNow API
+        List<TeeTimeSlot> allResults = golfNowActivities.searchTeeTimes(userPrefs);
+        logger.info("Found {} tee time slots from GolfNow", allResults.size());
 
-        // TODO: Get previous results from DB and filter for new matches only
-        // For now, we'll notify about all results
-        // Future implementation:
-        // 1. Query DB for previous tee times matching this search criteria
-        // 2. Filter results to only include new/unseen tee times
-        // 3. Save new results to DB
-        // 4. Track notification in user_notifications table
-
-        // Send notification if we have results
-        if (!results.isEmpty()) {
-            logger.info("Sending notification for {} tee times to {}", results.size(), userPreferences.email());
-            notificationActivity.sendTeeTimeNotification(userPreferences.email(), results, userPreferences.searchCriteria().numberOfPlayers());
-        } else {
-            logger.info("No tee times found, skipping notification");
+        if (allResults.isEmpty()) {
+            logger.info("No tee times found, skipping processing");
+            return allResults;
         }
 
-        return results;
+        // 3. Process results: get previous from DB, filter new matches, save to DB
+        List<TeeTimeSlot> newMatches = golfNowActivities.filterPreviousMatches(allResults, userPrefs.searchCriteria());
+
+        golfNowActivities.saveNewMatches(allResults);
+        logger.info("Filtered to {} new tee time matches", newMatches.size());
+
+        // 4. Send notification if we have new matches
+        if (!newMatches.isEmpty()) {
+            logger.info("Sending notification for {} new tee times to {}", newMatches.size(), userPrefs.email());
+            notificationActivity.sendTeeTimeNotification(userPrefs.id(),
+                                                         userPrefs.email(),
+                                                         newMatches,
+                                                         userPrefs.searchCriteria().numberOfPlayers());
+        } else {
+            logger.info("No new tee times found, skipping notification");
+        }
+
+        return newMatches;
     }
 }

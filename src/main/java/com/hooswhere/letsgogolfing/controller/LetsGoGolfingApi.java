@@ -1,10 +1,9 @@
 package com.hooswhere.letsgogolfing.controller;
 
-import com.hooswhere.letsgogolfing.dto.AuthTokens;
 import com.hooswhere.letsgogolfing.dto.FacilitySummary;
 import com.hooswhere.letsgogolfing.dto.SearchCriteria;
+import com.hooswhere.letsgogolfing.dto.TTMonitorRequest;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
-import com.hooswhere.letsgogolfing.dto.UserPreferences;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -46,7 +45,7 @@ public interface LetsGoGolfingApi {
                     description = "Internal server error or GolfNow API error"
             )
     })
-    @PostMapping("/facilities/search")
+    @PostMapping("/api/facilities/search")
     List<FacilitySummary> searchFacilities(
             @Parameter(
                     description = "Search criteria for finding golf facilities. " +
@@ -82,14 +81,14 @@ public interface LetsGoGolfingApi {
                     description = "Internal server error or GolfNow API error"
             )
     })
-    @PostMapping("/tee-times/search")
+    @PostMapping("/api/tee-times/search")
     List<TeeTimeSlot> searchTeeTimes(
             @Parameter(
                     description = "User preferences including email and search criteria. " +
                                  "Must include priorityCourseIds (list of 3-5 facility IDs) to avoid excessive API calls.",
                     required = true,
-                    content = @Content(schema = @Schema(implementation = SearchCriteria.class))
+                    content = @Content(schema = @Schema(implementation = TTMonitorRequest.class))
             )
-            @RequestBody SearchCriteria searchCriteria
+            @RequestBody TTMonitorRequest request
     ) throws Exception;
 }

@@ -9,14 +9,11 @@ import com.hooswhere.letsgogolfing.dto.Facility;
 import com.hooswhere.letsgogolfing.dto.FacilityTeeTimeRequest;
 import com.hooswhere.letsgogolfing.dto.FacilityTeeTimeResponse;
 import com.hooswhere.letsgogolfing.dto.SearchCriteria;
-import com.hooswhere.letsgogolfing.dto.TeeTime;
 import com.hooswhere.letsgogolfing.dto.TeeTimeRate;
-import com.hooswhere.letsgogolfing.dto.TeeTimeResult;
 import com.hooswhere.letsgogolfing.dto.TeeTimeResults;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSearchRequest;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSearchResponse;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
-import com.hooswhere.letsgogolfing.dto.UserPreferences;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -27,11 +24,9 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class GolfNowService {
@@ -62,7 +57,8 @@ public class GolfNowService {
      * @param criteria search criteria
      * @return list of matching tee time slots
      */
-    public List<TeeTimeSlot> fetchTeeTimesForFacilities(Map<String, Object> cookies, List<Integer> facilityIds, SearchCriteria criteria) {
+    public List<TeeTimeSlot> fetchTeeTimesForFacilities(Map<String, Object> cookies, List<Integer> facilityIds,
+                                                        SearchCriteriaDbDto criteria) {
         List<TeeTimeSlot> allMatchingTeeTimeSlots = new ArrayList<>();
 
         for (int id : facilityIds) {
@@ -227,7 +223,7 @@ public class GolfNowService {
     private FacilityTeeTimeResponse fetchFacilityTeeTimes(
             Map<String, Object> cookies,
             int facilityId,
-            SearchCriteria criteria) {
+            SearchCriteriaDbDto criteria) {
 
         FacilityTeeTimeRequest request = buildFacilityTeeTimeRequest(facilityId, criteria);
         String url = configProps.baseUrl() + configProps.endpoints().teeTimeResults();
@@ -249,13 +245,9 @@ public class GolfNowService {
         }
     }
 
-    private FacilityTeeTimeRequest buildFacilityTeeTimeRequest(int facilityId, SearchCriteria criteria) {
-        String minTime = criteria.preferredTimeStart() != null
-                ? convertHourToApiValue(criteria.preferredTimeStart())
-                : "10";  // 5am default
-        String maxTime = criteria.preferredTimeEnd() != null
-                ? convertHourToApiValue(criteria.preferredTimeEnd())
-                : "42";  // 9pm+ default
+    private FacilityTeeTimeRequest buildFacilityTeeTimeRequest(int facilityId, SearchCriteriaDbDto criteria) {
+        String minTime = convertHourToApiValue(criteria.preferredTimeStart());  // 5am default
+        String maxTime = convertHourToApiValue(criteria.preferredTimeEnd());  // 9pm+ default
 
         return new FacilityTeeTimeRequest(
                 criteria.radiusMiles(),
@@ -297,14 +289,10 @@ public class GolfNowService {
      */
     private List<TeeTimeSlot> filterTeeTimesByPreferences(
             List<TeeTimeSlot> teeTimeSlots,
-            SearchCriteria criteria) {
+            SearchCriteriaDbDto criteria) {
 
-        LocalTime preferredStart = criteria.preferredTimeStart() != null
-                ? LocalTime.of(criteria.preferredTimeStart(), 0)
-                : LocalTime.MIN;
-        LocalTime preferredEnd = criteria.preferredTimeEnd() != null
-                ? LocalTime.of(criteria.preferredTimeEnd(), 0)
-                : LocalTime.MAX;
+        LocalTime preferredStart = LocalTime.of(criteria.preferredTimeStart(), 0);
+        LocalTime preferredEnd = LocalTime.of(criteria.preferredTimeEnd(), 0);
         int bufferMinutes = 15;
 
         LocalTime bufferedStart = preferredStart.minusMinutes(bufferMinutes);
