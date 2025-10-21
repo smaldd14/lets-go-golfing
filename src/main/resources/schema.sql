@@ -97,3 +97,16 @@ CREATE TABLE IF NOT EXISTS user_notifications (
 
 CREATE INDEX IF NOT EXISTS idx_user_notif_preference ON user_notifications(user_search_preference_id);
 CREATE INDEX IF NOT EXISTS idx_user_notif_result ON user_notifications(tee_time_result_id);
+
+CREATE TABLE IF NOT EXISTS email_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    subject VARCHAR(500) NOT NULL,
+    html_body TEXT,
+    text_body TEXT,
+    is_active BOOLEAN DEFAULT true,
+    version INTEGER DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

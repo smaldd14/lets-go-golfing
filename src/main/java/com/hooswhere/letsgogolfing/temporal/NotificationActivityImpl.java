@@ -2,6 +2,10 @@ package com.hooswhere.letsgogolfing.temporal;
 
 import com.hooswhere.letsgogolfing.dto.TeeTimeResultDbDto;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
+import com.hooswhere.letsgogolfing.notification.email.EmailService;
+import com.hooswhere.letsgogolfing.notification.email.EmailTemplate;
+import com.hooswhere.letsgogolfing.notification.email.EmailTemplateContext;
+import com.hooswhere.letsgogolfing.notification.email.EmailTemplateService;
 import com.hooswhere.letsgogolfing.service.TeeTimeResultService;
 import com.hooswhere.letsgogolfing.service.UserNotificationService;
 import io.temporal.spring.boot.ActivityImpl;
@@ -22,34 +26,105 @@ public class NotificationActivityImpl implements NotificationActivity {
 
     private final UserNotificationService userNotificationService;
     private final TeeTimeResultService teeTimeResultService;
+    private final EmailService emailService;
+    private final EmailTemplateService emailTemplateService;
 
     public NotificationActivityImpl(UserNotificationService userNotificationService,
-                                   TeeTimeResultService teeTimeResultService) {
+                                   TeeTimeResultService teeTimeResultService,
+                                   EmailService emailService,
+                                   EmailTemplateService emailTemplateService) {
         this.userNotificationService = userNotificationService;
         this.teeTimeResultService = teeTimeResultService;
+        this.emailService = emailService;
+        this.emailTemplateService = emailTemplateService;
     }
 
     @Override
     public void sendTeeTimeNotification(UUID userSearchPreferenceId, String email, List<TeeTimeSlot> teeTimes, int numPlayers) {
-        LOG.info("=== NOTIFICATION ===");
-        LOG.info("To: {}", email);
-        LOG.info("Subject: {} New Tee Times Available!", teeTimes.size());
-        LOG.info("Message:");
-        LOG.info("We found {} tee time(s) matching your search criteria:", teeTimes.size());
-        LOG.info("");
+        LOG.info("Sending tee time notification to {} for {} tee times", email, teeTimes.size());
+
+        // Build tee times HTML list
+        StringBuilder teeTimesHtml = new StringBuilder();
+        StringBuilder teeTimesText = new StringBuilder();
 
         for (int i = 0; i < teeTimes.size(); i++) {
             TeeTimeSlot slot = teeTimes.get(i);
-            LOG.info("{}. {} at {}", i + 1, slot.facility().name(), slot.formattedTime());
-            LOG.info("   Price: ${}", slot.displayRate());
-            LOG.info("   Booking URL: {}", generateBookingUrl(slot, numPlayers));
-            LOG.info("");
+            String bookingUrl = generateBookingUrl(slot, numPlayers);
+            LocalDateTime slotDate = LocalDateTime.parse(slot.time());
+            // HTML version
+            teeTimesHtml.append(String.format("""
+                <div class="tee-time">
+                    <h2>%s</h2>
+                    <div class="detail"><strong>Time:</strong> %s</div>
+                    <div class="detail"><strong>Date:</strong> %s</div>
+                    <div class="detail"><strong>Players:</strong> %d</div>
+                    <div class="price">$%.2f</div>
+                    <a href="%s" class="book-button">Book Now →</a>
+                </div>
+                """,
+                escapeHtml(slot.facility().name()),
+                slot.formattedTime(),
+                slotDate.toLocalDate(),
+                numPlayers,
+                slot.displayRate(),
+                bookingUrl
+            ));
+
+            // Text version
+            teeTimesText.append(String.format("""
+                %d. %s
+                   Time: %s
+                   Date: %s
+                   Players: %d
+                   Price: $%.2f
+                   Book: %s
+
+                """,
+                i + 1,
+                slot.facility().name(),
+                slot.formattedTime(),
+                slot.time(),
+                numPlayers,
+                slot.displayRate(),
+                bookingUrl
+            ));
         }
 
-        LOG.info("=== END NOTIFICATION ===");
+        // Build template context
+        EmailTemplateContext context = EmailTemplateContext.builder()
+                .put("teeTimeCount", teeTimes.size())
+                .put("pluralSuffix", teeTimes.size() > 1 ? "s" : "")
+                .put("teeTimesList", teeTimesHtml.toString())
+                .put("teeTimesListText", teeTimesText.toString())
+                .put("unsubscribeUrl", "https://letsgogolfing.com/unsubscribe") // TODO: actual unsubscribe URL
+                .build();
 
-        // TODO: Replace with actual email sending via AWS SES
-        // EmailService.send(email, subject, body);
+        // Render email template
+        EmailTemplate renderedTemplate = emailTemplateService.renderFullTemplate("tee-time-notification", context);
+
+        if (renderedTemplate == null) {
+            LOG.error("Failed to render email template for tee time notification");
+            return;
+        }
+
+        // Send email via AWS SES
+        boolean sent = emailService.sendEmail(
+                email,
+                null,
+                renderedTemplate.subject(),
+                renderedTemplate.htmlBody(),
+                renderedTemplate.textBody(),
+                java.util.Map.of(
+                        "notification_type", "tee_time",
+                        "tee_time_count", String.valueOf(teeTimes.size())
+                )
+        );
+
+        if (sent) {
+            LOG.info("Successfully sent email notification to {}", email);
+        } else {
+            LOG.error("Failed to send email notification to {}", email);
+        }
 
         // Record notifications in DB
         List<UUID> teeTimeResultIds = teeTimes.stream()
@@ -74,5 +149,16 @@ public class NotificationActivityImpl implements NotificationActivity {
             userNotificationService.recordNotifications(userSearchPreferenceId, teeTimeResultIds);
             LOG.info("Recorded {} notifications in DB for user preference {}", teeTimeResultIds.size(), userSearchPreferenceId);
         }
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
     }
 }
