@@ -27,12 +27,13 @@
 		<url/>
 	</scm>
 	<properties>
-		<java.version>25</java.version>
+		<java.version>21</java.version>
 		<temporal.version>1.30.1</temporal.version>
 		<hypersistence.utils.version>3.7.3</hypersistence.utils.version>
 		<spring.ai.bom.version>1.0.3</spring.ai.bom.version>
 		<playwright.version>1.49.0</playwright.version>
 		<aws.sdk.version>2.31.53</aws.sdk.version>
+		<stripe.sdk.version>30.1.0</stripe.sdk.version>
 	</properties>
 
 	<repositories>
@@ -110,6 +111,11 @@
 			<version>2.8.9</version>
 		</dependency>
 		<dependency>
+			<groupId>com.stripe</groupId>
+			<artifactId>stripe-java</artifactId>
+			<version>${stripe.sdk.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
@@ -124,12 +130,6 @@
 			<groupId>io.temporal</groupId>
 			<artifactId>temporal-spring-boot-starter</artifactId>
 			<version>${temporal.version}</version>
-		</dependency>
-		<!-- Playwright for browser automation with BrowserBase -->
-		<dependency>
-			<groupId>com.microsoft.playwright</groupId>
-			<artifactId>playwright</artifactId>
-			<version>${playwright.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>

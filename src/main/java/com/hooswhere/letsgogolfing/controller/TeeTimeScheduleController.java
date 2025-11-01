@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 public class TeeTimeScheduleController implements TeeTimeScheduleApi {
@@ -35,8 +36,8 @@ public class TeeTimeScheduleController implements TeeTimeScheduleApi {
         UserSearchPreferenceDto userSearchPreferenceDto = activePrefs.stream().findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "No active search preferences found for user: " + scheduleRequest.email()));
-
-        return scheduleStarter.createTeeTimeSearchSchedule(userSearchPreferenceDto);
+        Optional<String> scheduleId = scheduleStarter.createTeeTimeSearchSchedule(userSearchPreferenceDto);
+        return ResponseEntity.of(scheduleId);
     }
 
     @Override

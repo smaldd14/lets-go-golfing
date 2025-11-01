@@ -62,6 +62,33 @@ public class UserSearchPreferenceService {
     }
 
     /**
+     * Creates a new user search preference from an existing search criteria ID.
+     * Used by Stripe webhook after payment.
+     */
+    @Transactional
+    public UserSearchPreferenceDto createPreferenceFromCriteriaId(String email,
+                                                                   UUID searchCriteriaId,
+                                                                   boolean paymentEnabled,
+                                                                   boolean notifyEnabled,
+                                                                   Duration scheduleInterval) {
+        // Get the existing search criteria entity
+        SearchCriteriaEntity criteriaEntity = searchCriteriaRepository.findById(searchCriteriaId)
+                .orElseThrow(() -> new IllegalArgumentException("Search criteria not found: " + searchCriteriaId));
+
+        // Create user preference
+        UserSearchPreferenceEntity preference = new UserSearchPreferenceEntity();
+        preference.setEmail(email);
+        preference.setSearchCriteria(criteriaEntity);
+        preference.setPaymentEnabled(paymentEnabled);
+        preference.setNotifyEnabled(notifyEnabled);
+        preference.setScheduleInterval(scheduleInterval.toString());
+        preference.setActive(true);
+
+        UserSearchPreferenceEntity saved = userSearchPreferenceRepository.save(preference);
+        return toDto(saved);
+    }
+
+    /**
      * Gets all active search preferences for a user.
      */
     @Transactional(readOnly = true)

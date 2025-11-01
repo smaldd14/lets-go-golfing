@@ -1,8 +1,6 @@
 package com.hooswhere.letsgogolfing.temporal;
 
-import com.hooswhere.letsgogolfing.browserbase.AuthService;
 import com.hooswhere.letsgogolfing.dto.FacilitySummary;
-import com.hooswhere.letsgogolfing.dto.SearchCriteria;
 import com.hooswhere.letsgogolfing.dto.SearchCriteriaDbDto;
 import com.hooswhere.letsgogolfing.dto.TeeTimeResultDbDto;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
@@ -37,16 +35,13 @@ public class GolfNowActivitiesImpl implements GolfNowActivities {
     private static final Logger LOG = LoggerFactory.getLogger(GolfNowActivitiesImpl.class);
 
     private final GolfNowService golfNowService;
-    private final AuthService authService;
     private final TeeTimeResultService teeTimeResultService;
     private final UserSearchPreferenceService userPrefsService;
 
     public GolfNowActivitiesImpl(GolfNowService golfNowService,
-                                 AuthService authService,
                                  TeeTimeResultService teeTimeResultService,
                                  UserSearchPreferenceService userPrefsService) {
         this.golfNowService = golfNowService;
-        this.authService = authService;
         this.teeTimeResultService = teeTimeResultService;
         this.userPrefsService = userPrefsService;
     }

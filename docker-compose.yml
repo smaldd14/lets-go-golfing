@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  letsgogolfing-api:
+    container_name: letsgogolfing-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - shared-infra
+    ports:
+      - "8082:8080"  # External:Internal - using 8082 to avoid conflicts with other apps
+    environment:
+      # Spring Boot Profile
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-docker}
+
+      # Database Configuration
+      - SPRING_DATASOURCE_URL=${DATABASE_URL:-jdbc:postgresql://postgresql:5432/letsgogolfing}
+      - SPRING_DATASOURCE_USERNAME=${DATABASE_USERNAME:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${DATABASE_PASSWORD:-postgres}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=${HIBERNATE_DDL_AUTO:-update}
+      - SPRING_JPA_SHOW_SQL=${SHOW_SQL:-false}
+
+      # Server Configuration
+      - SERVER_PORT=8080
+
+      # CORS Configuration
+      - CORS_ALLOWORIGINS=${CORS_ALLOWORIGINS:-http://localhost:3000,http://localhost:5173}
+
+      # Temporal Configuration
+      - SPRING_TEMPORAL_CONNECTION_TARGET=${TEMPORAL_HOST:-temporal:7233}
+      - SPRING_TEMPORAL_CONNECTION_TARGET_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
+
+      # AWS SES Configuration
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_FROM_EMAIL=${AWS_FROM_EMAIL}
+      - AWS_FROM_NAME=${AWS_FROM_NAME}
+
+      # BrowserBase Configuration
+      - BB_API_KEY=${BB_API_KEY}
+      - BB_EMAIL=${BB_EMAIL}
+      - BB_PASSWORD=${BB_PASSWORD}
+      - BB_PROJECT_ID=${BB_PROJECT_ID}
+
+      # Stripe Configuration
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+
+      # JVM Configuration
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+networks:
+  shared-infra:
+    external: true
+    name: shared-infra

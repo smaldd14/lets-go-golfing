@@ -2,6 +2,7 @@
 
 A resilient tee time monitoring system built with Temporal.io that searches GolfNow for available tee times and sends email notifications when new slots appear.
 
+Check out [my blog post](https://smaldore.dev/blog/temporal/tee-time-monitoring) for a deep dive into the architecture and implementation details.
 ## Prerequisites
 
 - Java 21+

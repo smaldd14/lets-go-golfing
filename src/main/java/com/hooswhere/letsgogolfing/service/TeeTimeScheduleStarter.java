@@ -34,7 +34,7 @@ public class TeeTimeScheduleStarter {
         this.scheduleClient = scheduleClient;
     }
 
-    public ResponseEntity<String> createTeeTimeSearchSchedule(UserSearchPreferenceDto userPrefs) {
+    public Optional<String> createTeeTimeSearchSchedule(UserSearchPreferenceDto userPrefs) {
         // Use email as schedule ID to prevent duplicates
         String scheduleId = generateScheduleId(userPrefs.email());
 
@@ -72,7 +72,7 @@ public class TeeTimeScheduleStarter {
         }
 
 
-        return ResponseEntity.of(Optional.of(scheduleId));
+        return Optional.of(scheduleId);
     }
 
     private boolean scheduleExists(String scheduleId) {

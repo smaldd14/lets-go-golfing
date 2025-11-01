@@ -1,8 +1,6 @@
 package com.hooswhere.letsgogolfing.golfnow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hooswhere.letsgogolfing.browserbase.AuthService;
-import com.hooswhere.letsgogolfing.browserbase.BrowserBaseClient;
 import com.hooswhere.letsgogolfing.dto.AuthTokens;
 import com.hooswhere.letsgogolfing.dto.*;
 import com.hooswhere.letsgogolfing.dto.Facility;
@@ -31,18 +29,14 @@ import java.util.Map;
 @Service
 public class GolfNowService {
     private static final Logger LOG = LoggerFactory.getLogger(GolfNowService.class);
-    private final AuthService authService;
     private final GolfNowConfigProps configProps;
     private final ObjectMapper objectMapper;
-    private final BrowserBaseClient client;
     private final RestTemplate restTemplate;
 
-    public GolfNowService(AuthService authService, GolfNowConfigProps configProps, ObjectMapper objectMapper,
-                     BrowserBaseClient client, RestTemplate restTemplate) {
-        this.authService = authService;
+    public GolfNowService(GolfNowConfigProps configProps, ObjectMapper objectMapper,
+                     RestTemplate restTemplate) {
         this.configProps = configProps;
         this.objectMapper = objectMapper;
-        this.client = client;
         this.restTemplate = restTemplate;
     }
 

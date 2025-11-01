@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "template_version": 0,
+    "exclude_metadata": false
+  },
+  "fixtures": [
+    {
+      "name": "checkout_session",
+      "expected_error_type": "",
+      "path": "/v1/checkout/sessions",
+      "method": "post",
+      "params": {
+        "cancel_url": "http://localhost:5173/monitor",
+        "success_url": "http://localhost:5173/success",
+        "line_items": [
+          {
+            "price": "price_1SON5bRnVQdT5piN4kx1ex9k",
+            "quantity": 1
+          }
+        ],
+        "mode": "payment",
+        "customer_email": "smaldd14@gmail.com",
+        "metadata": {
+          "searchCriteriaId": "3d09640a-b29f-416f-9a81-cb51a0c05cc5"
+        }
+      }
+    },
+    {
+      "name": "payment_page",
+      "expected_error_type": "",
+      "path": "/v1/payment_pages/${checkout_session:id}",
+      "method": "get",
+      "params": null
+    },
+    {
+      "name": "payment_method",
+      "expected_error_type": "",
+      "path": "/v1/payment_methods",
+      "method": "post",
+      "params": {
+        "billing_details": {
+          "email": "smaldd14@gmail.com",
+          "name": "Test User"
+        },
+        "card": {
+          "token": "tok_visa"
+        },
+        "type": "card"
+      }
+    },
+    {
+      "name": "payment_page_confirm",
+      "expected_error_type": "",
+      "path": "/v1/payment_pages/${checkout_session:id}/confirm",
+      "method": "post",
+      "params": {
+        "expected_amount": 99,
+        "payment_method": "${payment_method:id}"
+      }
+    }
+  ],
+  "env": null
+}

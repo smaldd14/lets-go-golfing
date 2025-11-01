@@ -6,8 +6,6 @@ import com.hooswhere.letsgogolfing.dto.FacilitySummary;
 import com.hooswhere.letsgogolfing.dto.TTMonitorRequest;
 import com.hooswhere.letsgogolfing.dto.TeeTimeSlot;
 import com.hooswhere.letsgogolfing.dto.UserPreferencesLegacy;
-import com.hooswhere.letsgogolfing.dto.UserSearchPreferenceDto;
-import com.hooswhere.letsgogolfing.temporal.BBAuthWorkflow;
 import com.hooswhere.letsgogolfing.temporal.FacilitySearchWorkflow;
 import com.hooswhere.letsgogolfing.temporal.TeeTimeSearchWorkflow;
 import io.temporal.client.WorkflowClient;
@@ -46,16 +44,5 @@ public class GolfNowStarter {
                                                   .build());
         // synchronous call to the workflow method
         return stub.searchTeeTimes(ttMonitorRequest);
-    }
-
-    public AuthTokens login() {
-        String wfId = UUID.randomUUID().toString();
-        var stub = client.newWorkflowStub(BBAuthWorkflow.class,
-                                          WorkflowOptions.newBuilder()
-                                                  .setWorkflowId(wfId)
-                                                  .setTaskQueue("golfnow")
-                                                  .build());
-        // synchronous call to the workflow method
-        return stub.authenticate(new AuthenticationRequest());
     }
 }
