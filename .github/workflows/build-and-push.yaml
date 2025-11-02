@@ -42,7 +42,7 @@ jobs:
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ${{ env.GITLAB_REGISTRY }}/${{ env.GITLAB_PROJECT_PATH }}/api
+                  images: ${{ env.GITLAB_REGISTRY }}/${{ env.GITLAB_PROJECT_PATH }}/letsgogolfing
                   tags: |
                       type=raw,value=latest
                       type=raw,value=${{ steps.version.outputs.version }}
@@ -67,5 +67,5 @@ jobs:
             - name: Output image details
               run: |
                   echo "🚀 Successfully built and pushed:"
-                  echo "Image: ${{ env.GITLAB_REGISTRY }}/${{ env.GITLAB_PROJECT_PATH }}/api:${{ steps.version.outputs.version }}"
+                  echo "Image: ${{ env.GITLAB_REGISTRY }}/${{ env.GITLAB_PROJECT_PATH }}/letsgogolfing:${{ steps.version.outputs.version }}"
                   echo "Also tagged as: latest"
