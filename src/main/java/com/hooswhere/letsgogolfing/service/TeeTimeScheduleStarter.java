@@ -2,6 +2,7 @@ package com.hooswhere.letsgogolfing.service;
 
 import com.hooswhere.letsgogolfing.controller.LggException;
 import com.hooswhere.letsgogolfing.dto.ScheduleRequest;
+import com.hooswhere.letsgogolfing.dto.SearchCriteriaDbDto;
 import com.hooswhere.letsgogolfing.dto.TTMonitorRequest;
 import com.hooswhere.letsgogolfing.dto.UserPreferencesLegacy;
 import com.hooswhere.letsgogolfing.dto.UserSearchPreferenceDto;
@@ -23,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -126,8 +128,8 @@ public class TeeTimeScheduleStarter {
 
     private Instant calculateScheduleEndTime(SearchCriteriaDbDto searchCriteria) {
         // Parse the search date (format: "Oct 11 2025")
-        LocalDateTime dateTime = LocalDateTime.parse(searchCriteria.searchDate(), DATE_FORMATTER)
-                .atStartOfDay()
+        LocalDate date = LocalDate.parse(searchCriteria.searchDate(), DATE_FORMATTER);
+        LocalDateTime dateTime = date.atStartOfDay()
                 .withHour(searchCriteria.preferredTimeEnd())
                 .plusMinutes(GRACE_PERIOD_MINUTES);
 
