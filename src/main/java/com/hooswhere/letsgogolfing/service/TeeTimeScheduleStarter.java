@@ -22,12 +22,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 @Service
 public class TeeTimeScheduleStarter {
     private static final Logger LOG = LoggerFactory.getLogger(TeeTimeScheduleStarter.class);
+    private static final ZoneId EST_ZONE = ZoneId.of("America/New_York");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH);
+    private static final int GRACE_PERIOD_MINUTES = 15;
+
     private final ScheduleClient scheduleClient;
 
     public TeeTimeScheduleStarter(ScheduleClient scheduleClient) {
@@ -37,6 +46,15 @@ public class TeeTimeScheduleStarter {
     public Optional<String> createTeeTimeSearchSchedule(UserSearchPreferenceDto userPrefs) {
         // Use email as schedule ID to prevent duplicates
         String scheduleId = generateScheduleId(userPrefs.email());
+
+        // Calculate schedule end time and validate it's not in the past
+        Instant endTime = calculateScheduleEndTime(userPrefs.searchCriteria());
+        if (endTime.isBefore(Instant.now())) {
+            throw new LggException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cannot create schedule: the tee time window has already passed"
+            );
+        }
 
         Schedule schedule = Schedule.newBuilder()
                 .setAction(
@@ -54,6 +72,7 @@ public class TeeTimeScheduleStarter {
                             .setIntervals(List.of(
                                     new ScheduleIntervalSpec(userPrefs.scheduleInterval())
                             ))
+                            .setEndAt(endTime)
                             .build()
                 )
                 .build();
@@ -103,5 +122,15 @@ public class TeeTimeScheduleStarter {
     private String generateScheduleId(String email) {
         // Use email as base for schedule ID to ensure one schedule per user
         return "tee-time-search-" + email;
+    }
+
+    private Instant calculateScheduleEndTime(SearchCriteriaDbDto searchCriteria) {
+        // Parse the search date (format: "Oct 11 2025")
+        LocalDateTime dateTime = LocalDateTime.parse(searchCriteria.searchDate(), DATE_FORMATTER)
+                .atStartOfDay()
+                .withHour(searchCriteria.preferredTimeEnd())
+                .plusMinutes(GRACE_PERIOD_MINUTES);
+
+        return dateTime.atZone(EST_ZONE).toInstant();
     }
 }
