@@ -47,6 +47,7 @@ services:
 
       # Stripe Configuration
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - NOWGOLF_API_KEY=${NOWGOLF_API_KEY}
 
       # JVM Configuration
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
