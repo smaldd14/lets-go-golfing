@@ -8,7 +8,7 @@ import java.util.List;
 public record FacilityTeeTimeResponse(
         TeeTimeResultsDetailed ttResults,
         int total,
-        String date,
+        DateInfo date,
         boolean limitReached,
         Object ttException
 ) {

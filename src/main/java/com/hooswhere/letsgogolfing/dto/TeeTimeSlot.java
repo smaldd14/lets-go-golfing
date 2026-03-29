@@ -8,14 +8,14 @@ import java.util.List;
 public record TeeTimeSlot(
         FacilityDetails facility,
         List<TeeTimeRate> teeTimeRates,
-        String time,  // ISO 8601: "2025-10-18T07:07:00"
+        DateInfo time,  // was String, now object with date/formatted/formattedTimeMeridian
         String detailUrl,  // "/tee-times/facility/4817/tee-time/1867224724"
-        String formattedTime,  // "7:07"
-        String formattedTimeMeridian,  // "AM"
+        @Deprecated String formattedTime,  // deprecated: use time.formatted()
+        @Deprecated String formattedTimeMeridian,  // deprecated: use time.formattedTimeMeridian()
         int facilityId,
         long defaultTeeTimeRateId,
-        double displayRate,
-        String minRateFormatted,
+        PriceInfo displayRate,          // was double, now object with value/formattedValue2/etc
+        @Deprecated String minRateFormatted,  // deprecated: use displayRate.formattedValue2()
         boolean isPriceRangeZero
 ) {
 }

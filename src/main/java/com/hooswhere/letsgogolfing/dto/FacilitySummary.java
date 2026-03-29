@@ -31,14 +31,14 @@ public record FacilitySummary(
                 : "Address not available";
 
         // Format time range
-        String timeRange = String.format("%s - %s",
-                facility.minDateFormatted() != null ? facility.minDateFormatted() : "N/A",
-                facility.maxDateFormatted() != null ? facility.maxDateFormatted() : "N/A");
+        String minTime = facility.minDate() != null ? facility.minDate().formatted() + " " + facility.minDate().formattedTimeMeridian() : "N/A";
+        String maxTime = facility.maxDate() != null ? facility.maxDate().formatted() + " " + facility.maxDate().formattedTimeMeridian() : "N/A";
+        String timeRange = minTime + " - " + maxTime;
 
         // Format price range
-        String priceRange = String.format("%s - %s",
-                facility.minPriceFormatted() != null ? facility.minPriceFormatted() : "$0",
-                facility.maxPriceFormatted() != null ? facility.maxPriceFormatted() : "$0");
+        String minPriceStr = facility.minPrice() != null ? facility.minPrice().formattedValue2() : "$0";
+        String maxPriceStr = facility.maxPrice() != null ? facility.maxPrice().formattedValue2() : "$0";
+        String priceRange = minPriceStr + " - " + maxPriceStr;
 
         return new FacilitySummary(
                 facility.id(),

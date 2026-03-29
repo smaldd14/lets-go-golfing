@@ -35,7 +35,7 @@ public class TeeTimeResultService {
     }
 
     private TeeTimeResultDbDto saveOrUpdateSingle(TeeTimeSlot slot) {
-        LocalDateTime teeTime = LocalDateTime.parse(slot.time());
+        LocalDateTime teeTime = slot.time().toLocalDateTime();
 
         TeeTimeResultEntity entity = teeTimeResultRepository
                 .findByFacilityIdAndTeeTime(slot.facilityId(), teeTime)
@@ -43,7 +43,7 @@ public class TeeTimeResultService {
 
         // Update last_seen_at and price (price might change)
         entity.setLastSeenAt(LocalDateTime.now());
-        entity.setPrice(BigDecimal.valueOf(slot.displayRate()));
+        entity.setPrice(BigDecimal.valueOf(slot.displayRate().value()));
 
         TeeTimeResultEntity saved = teeTimeResultRepository.save(entity);
         return toDto(saved);
@@ -54,7 +54,7 @@ public class TeeTimeResultService {
         entity.setFacilityId(slot.facilityId());
         entity.setFacilityName(slot.facility().name());
         entity.setTeeTime(teeTime);
-        entity.setPrice(BigDecimal.valueOf(slot.displayRate()));
+        entity.setPrice(BigDecimal.valueOf(slot.displayRate().value()));
         entity.setBookingUrl(generateBookingUrl(slot, 1)); // Default to 1 player for URL
         return entity;
     }

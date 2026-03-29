@@ -97,9 +97,7 @@ public class EmailTemplateService {
 
     @Transactional
     public void initializeDefaultTemplates() {
-        // Only create default templates if none exist
-        if (templateRepository.count() == 0) {
-            // Tee time notification template
+        if (!templateRepository.existsBySlug("tee-time-notification")) {
             createTemplate(
                     "tee-time-notification",
                     "Tee Time Notification",
@@ -154,10 +152,109 @@ public class EmailTemplateService {
                     To manage your search preferences or unsubscribe, visit: {{unsubscribeUrl}}
                     """
             );
+            logger.info("Seeded tee-time-notification template");
+        }
 
-            logger.info("Initialized default email templates");
-        } else {
-            logger.info("Default templates already exist, skipping initialization");
+        if (!templateRepository.existsBySlug("payment-confirmation")) {
+            createTemplate(
+                    "payment-confirmation",
+                    "Payment Confirmation",
+                    "Payment Confirmed - We're Monitoring Tee Times for {{searchDate}}",
+                    """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <style>
+                            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+                            .container { background: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                            h1 { color: #2c5f2d; margin-bottom: 10px; font-size: 24px; }
+                            .subtitle { color: #666; margin-bottom: 25px; font-size: 14px; }
+                            .criteria-box { background: #f8f9fa; border-left: 4px solid #28a745; padding: 20px; margin: 20px 0; border-radius: 4px; }
+                            .criteria-box h2 { color: #2c5f2d; margin: 0 0 15px 0; font-size: 18px; }
+                            .detail { margin: 10px 0; color: #555; font-size: 15px; }
+                            .detail strong { color: #333; display: inline-block; min-width: 140px; }
+                            .faq { margin: 30px 0; }
+                            .faq h2 { color: #2c5f2d; font-size: 18px; margin-bottom: 15px; }
+                            .faq-item { margin: 15px 0; }
+                            .faq-item strong { color: #333; display: block; margin-bottom: 4px; }
+                            .faq-item p { margin: 0; color: #555; font-size: 14px; }
+                            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center; }
+                            .footer a { color: #28a745; text-decoration: none; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1>Payment Confirmed</h1>
+                            <p class="subtitle">We're now monitoring tee times for <strong>{{searchDate}}</strong>. Here's a summary of what we'll be looking for.</p>
+
+                            <div class="criteria-box">
+                                <h2>Your Search Criteria</h2>
+                                <div class="detail"><strong>Date:</strong> {{searchDate}}</div>
+                                <div class="detail"><strong>Time Window:</strong> {{timeWindow}}</div>
+                                <div class="detail"><strong>Players:</strong> {{numberOfPlayers}}</div>
+                                <div class="detail"><strong>Holes:</strong> {{holes}}</div>
+                                <div class="detail"><strong>Search Radius:</strong> {{radiusMiles}} miles</div>
+                                <div class="detail"><strong>Max Price:</strong> {{maxPrice}}</div>
+                                <div class="detail"><strong>Priority Courses:</strong> {{priorityCourses}}</div>
+                            </div>
+
+                            <div class="faq">
+                                <h2>Frequently Asked Questions</h2>
+                                <div class="faq-item">
+                                    <strong>How often do you check for tee times?</strong>
+                                    <p>We check every 5 minutes around the clock until your search date.</p>
+                                </div>
+                                <div class="faq-item">
+                                    <strong>How will I be notified?</strong>
+                                    <p>You'll receive an email at {{email}} as soon as we find matching tee times.</p>
+                                </div>
+                                <div class="faq-item">
+                                    <strong>When does monitoring stop?</strong>
+                                    <p>Monitoring automatically stops after your search date ({{searchDate}}) has passed.</p>
+                                </div>
+                            </div>
+
+                            <div class="footer">
+                                <p>This is an automated confirmation from Let's Go Golfing.</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    """,
+                    """
+                    PAYMENT CONFIRMED
+                    ==================
+
+                    We're now monitoring tee times for {{searchDate}}. Here's a summary of what we'll be looking for.
+
+                    YOUR SEARCH CRITERIA
+                    --------------------
+                    Date:             {{searchDate}}
+                    Time Window:      {{timeWindow}}
+                    Players:          {{numberOfPlayers}}
+                    Holes:            {{holes}}
+                    Search Radius:    {{radiusMiles}} miles
+                    Max Price:        {{maxPrice}}
+                    Priority Courses: {{priorityCourses}}
+
+                    FREQUENTLY ASKED QUESTIONS
+                    --------------------------
+                    How often do you check for tee times?
+                    We check every 5 minutes around the clock until your search date.
+
+                    How will I be notified?
+                    You'll receive an email at {{email}} as soon as we find matching tee times.
+
+                    When does monitoring stop?
+                    Monitoring automatically stops after your search date ({{searchDate}}) has passed.
+
+                    ---
+                    This is an automated confirmation from Let's Go Golfing.
+                    """
+            );
+            logger.info("Seeded payment-confirmation template");
         }
     }
 

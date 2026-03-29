@@ -50,7 +50,7 @@ public class NotificationActivityImpl implements NotificationActivity {
         for (int i = 0; i < teeTimes.size(); i++) {
             TeeTimeSlot slot = teeTimes.get(i);
             String bookingUrl = generateBookingUrl(slot, numPlayers);
-            LocalDateTime slotDate = LocalDateTime.parse(slot.time());
+            LocalDateTime slotDate = slot.time().toLocalDateTime();
             // HTML version
             teeTimesHtml.append(String.format("""
                 <div class="tee-time">
@@ -63,10 +63,10 @@ public class NotificationActivityImpl implements NotificationActivity {
                 </div>
                 """,
                 escapeHtml(slot.facility().name()),
-                slot.formattedTime(),
+                slot.time().formatted() + slot.time().formattedTimeMeridian(),
                 slotDate.toLocalDate(),
                 numPlayers,
-                slot.displayRate(),
+                slot.displayRate().value(),
                 bookingUrl
             ));
 
@@ -83,9 +83,9 @@ public class NotificationActivityImpl implements NotificationActivity {
                 i + 1,
                 slot.facility().name(),
                 slot.formattedTime(),
-                slot.time(),
+                slot.time().date(),
                 numPlayers,
-                slot.displayRate(),
+                slot.displayRate().value(),
                 bookingUrl
             ));
         }
@@ -129,7 +129,7 @@ public class NotificationActivityImpl implements NotificationActivity {
         // Record notifications in DB
         List<UUID> teeTimeResultIds = teeTimes.stream()
                 .map(slot -> {
-                    LocalDateTime teeTime = LocalDateTime.parse(slot.time());
+                    LocalDateTime teeTime = slot.time().toLocalDateTime();
                     // Find the tee time result ID from DB
                     return teeTimeResultService.getPreviousResults(
                             List.of(slot.facilityId()),

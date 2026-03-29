@@ -138,7 +138,7 @@ public class GolfNowActivitiesImpl implements GolfNowActivities {
 
         return newSlots.stream()
                 .filter(slot -> {
-                    LocalDateTime teeTime = LocalDateTime.parse(slot.time());
+                    LocalDateTime teeTime = slot.time().toLocalDateTime();
                     LocalDateTime truncated = teeTime.truncatedTo(java.time.temporal.ChronoUnit.MINUTES);
                     String key = slot.facilityId() + ":" + truncated;
                     return !previousKeys.contains(key);

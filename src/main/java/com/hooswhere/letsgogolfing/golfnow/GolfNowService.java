@@ -2,6 +2,7 @@ package com.hooswhere.letsgogolfing.golfnow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hooswhere.letsgogolfing.dto.AuthTokens;
+import com.hooswhere.letsgogolfing.dto.DateInfo;
 import com.hooswhere.letsgogolfing.dto.*;
 import com.hooswhere.letsgogolfing.dto.Facility;
 import com.hooswhere.letsgogolfing.dto.FacilityTeeTimeRequest;
@@ -92,8 +93,6 @@ public class GolfNowService {
 
         TeeTimeResults generalResults;
         try {
-            // It seems like cookies are unnecessary for fetching tee times and facilities, so not passing in for now
-//            HttpHeaders headers = HttpClientUtils.createGolfNowHeaders(cookies);
             HttpEntity<TeeTimeSearchRequest> entity = new HttpEntity<>(request);
 
             ResponseEntity<TeeTimeSearchResponse> response =
@@ -182,16 +181,16 @@ public class GolfNowService {
 
         return facilities.stream()
                 .filter(facility -> {
-                    String minDate = facility.minDate();  // ISO 8601: "2025-10-18T07:00:00"
-                    String maxDate = facility.maxDate();
+                    DateInfo minDate = facility.minDate();
+                    DateInfo maxDate = facility.maxDate();
 
-                    if (minDate == null || maxDate == null) {
+                    if (minDate == null || minDate.date() == null || maxDate == null || maxDate.date() == null) {
                         return false;
                     }
 
                     try {
-                        LocalDateTime facilityStartTime = LocalDateTime.parse(minDate);
-                        LocalDateTime facilityEndTime = LocalDateTime.parse(maxDate);
+                        LocalDateTime facilityStartTime = minDate.toLocalDateTime();
+                        LocalDateTime facilityEndTime = maxDate.toLocalDateTime();
 
                         LocalTime facilityStart = facilityStartTime.toLocalTime();
                         LocalTime facilityEnd = facilityEndTime.toLocalTime();
@@ -296,7 +295,7 @@ public class GolfNowService {
                 .filter(slot -> {
                     // Parse tee time
                     try {
-                        LocalDateTime teeTime = LocalDateTime.parse(slot.time());
+                        LocalDateTime teeTime = slot.time().toLocalDateTime();
                         LocalTime slotTime = teeTime.toLocalTime();
 
                         // Check time is within preference range (with buffer)
@@ -310,7 +309,7 @@ public class GolfNowService {
                         // Filter for 18-hole options only (for now)
                         // TODO: Make hole count configurable via SearchCriteria
                         boolean has18HoleOption = slot.teeTimeRates().stream()
-                                .anyMatch(TeeTimeRate::isEightteen);
+                                .anyMatch(rate -> rate.isEightteen() || rate.holeCount() == 18);
 
                         return has18HoleOption;
 

@@ -1,6 +1,12 @@
 package com.hooswhere.letsgogolfing.service;
 
 import com.hooswhere.letsgogolfing.dto.UserSearchPreferenceDto;
+import com.hooswhere.letsgogolfing.entity.PriorityCourseEntity;
+import com.hooswhere.letsgogolfing.entity.SearchCriteriaEntity;
+import com.hooswhere.letsgogolfing.notification.email.EmailService;
+import com.hooswhere.letsgogolfing.notification.email.EmailTemplate;
+import com.hooswhere.letsgogolfing.notification.email.EmailTemplateContext;
+import com.hooswhere.letsgogolfing.notification.email.EmailTemplateService;
 import com.hooswhere.letsgogolfing.repository.SearchCriteriaRepository;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -13,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class StripeWebhookService {
@@ -25,13 +33,19 @@ public class StripeWebhookService {
     private final UserSearchPreferenceService userSearchPreferenceService;
     private final SearchCriteriaRepository searchCriteriaRepository;
     private final TeeTimeScheduleStarter scheduleStarter;
+    private final EmailService emailService;
+    private final EmailTemplateService emailTemplateService;
 
     public StripeWebhookService(UserSearchPreferenceService userSearchPreferenceService,
                                 SearchCriteriaRepository searchCriteriaRepository,
-                                TeeTimeScheduleStarter scheduleStarter) {
+                                TeeTimeScheduleStarter scheduleStarter,
+                                EmailService emailService,
+                                EmailTemplateService emailTemplateService) {
         this.userSearchPreferenceService = userSearchPreferenceService;
         this.searchCriteriaRepository = searchCriteriaRepository;
         this.scheduleStarter = scheduleStarter;
+        this.emailService = emailService;
+        this.emailTemplateService = emailTemplateService;
     }
 
     /**
@@ -101,9 +115,62 @@ public class StripeWebhookService {
             String scheduleId = scheduleResponse.get();
             userSearchPreferenceService.updateScheduleId(userPref.id(), scheduleId);
             LOG.info("Successfully started schedule {} for user {}", scheduleId, email);
+            sendPaymentConfirmationEmail(email, searchCriteria);
         } else {
             LOG.error("Failed to create schedule for user {}", email);
             throw new RuntimeException("Failed to create monitoring schedule");
         }
+    }
+
+    private void sendPaymentConfirmationEmail(String email, SearchCriteriaEntity criteria) {
+        try {
+            String timeWindow = formatHour(criteria.getPreferredTimeStart()) + " - " + formatHour(criteria.getPreferredTimeEnd());
+            String holesDisplay = switch (criteria.getHoles()) {
+                case 1 -> "9 holes";
+                case 2 -> "18 holes";
+                case 3 -> "9 or 18 holes";
+                default -> criteria.getHoles() + " holes";
+            };
+            String maxPriceDisplay = criteria.getMaxPrice() != null ? "$" + criteria.getMaxPrice() : "No limit";
+            String priorityCoursesDisplay = criteria.getPriorityCourses().isEmpty()
+                    ? "None specified"
+                    : criteria.getPriorityCourses().stream()
+                            .map(pc -> String.valueOf(pc.getFacilityId()))
+                            .collect(Collectors.joining(", "));
+
+            EmailTemplateContext context = EmailTemplateContext.builder()
+                    .put("searchDate", criteria.getSearchDate())
+                    .put("numberOfPlayers", criteria.getNumberOfPlayers())
+                    .put("timeWindow", timeWindow)
+                    .put("holes", holesDisplay)
+                    .put("radiusMiles", criteria.getRadiusMiles())
+                    .put("maxPrice", maxPriceDisplay)
+                    .put("priorityCourses", priorityCoursesDisplay)
+                    .put("email", email)
+                    .build();
+
+            EmailTemplate rendered = emailTemplateService.renderFullTemplate("payment-confirmation", context);
+            if (rendered == null) {
+                LOG.warn("payment-confirmation template not found, skipping confirmation email for {}", email);
+                return;
+            }
+
+            boolean sent = emailService.sendEmail(email, null, rendered.subject(), rendered.htmlBody(), rendered.textBody(),
+                    Map.of("notification_type", "payment_confirmation"));
+
+            if (sent) {
+                LOG.info("Payment confirmation email sent to {}", email);
+            } else {
+                LOG.warn("Failed to send payment confirmation email to {}", email);
+            }
+        } catch (Exception e) {
+            LOG.error("Error sending payment confirmation email to {}", email, e);
+        }
+    }
+
+    private static String formatHour(int hour) {
+        if (hour == 0 || hour == 24) return "12:00 AM";
+        if (hour == 12) return "12:00 PM";
+        return hour < 12 ? hour + ":00 AM" : (hour - 12) + ":00 PM";
     }
 }

@@ -12,18 +12,18 @@ public record Facility(
         double distance,               // Distance in miles from search center
         int numberOfReviews,
         double averageRating,
-        String minDate,                // ISO 8601: "2025-10-11T07:00:00"
-        String minDateFormatted,       // "7:00"
-        String maxDate,                // ISO 8601: "2025-10-11T19:00:00"
-        String maxDateFormatted,       // "7:00"
-        double minPrice,               // Minimum price (e.g., 21.99)
-        String minPriceFormatted,      // "$21.99"
-        String minPriceFormatted2,
-        String minPriceSuperScriptFormattedValue,
-        double maxPrice,               // Maximum price (e.g., 30.0)
-        String maxPriceFormatted,      // "$30.00"
-        String maxPriceFormatted2,
-        String maxPriceSuperScriptFormattedValue,
+        DateInfo minDate,              // was String, now object with date/formatted/formattedTimeMeridian
+        @Deprecated String minDateFormatted,       // deprecated: use minDate.formatted()
+        DateInfo maxDate,              // was String, now object with date/formatted/formattedTimeMeridian
+        @Deprecated String maxDateFormatted,       // deprecated: use maxDate.formatted()
+        PriceInfo minPrice,            // was double, now object with value/formattedValue2/etc
+        @Deprecated String minPriceFormatted,      // deprecated: use minPrice.formattedValue2()
+        @Deprecated String minPriceFormatted2,
+        @Deprecated String minPriceSuperScriptFormattedValue,
+        PriceInfo maxPrice,            // was double, now object with value/formattedValue2/etc
+        @Deprecated String maxPriceFormatted,      // deprecated: use maxPrice.formattedValue2()
+        @Deprecated String maxPriceFormatted2,
+        @Deprecated String maxPriceSuperScriptFormattedValue,
         boolean isPriceRangeZero,
         boolean hasHotDeal,            // Special pricing available
         List<String> tags,             // e.g., ["GOLFENT", "NORAM", "SIM"]
