@@ -48,13 +48,29 @@ public class UserSearchPreferenceService {
         SearchCriteriaEntity criteriaEntity = searchCriteriaRepository.findById(criteriaDto.id())
                 .orElseThrow(() -> new IllegalStateException("Search criteria not found after creation"));
 
-        // Create user preference
-        UserSearchPreferenceEntity preference = new UserSearchPreferenceEntity();
+        return upsertPreference(email, criteriaEntity, paymentEnabled, notifyEnabled, scheduleInterval);
+    }
+
+    /**
+     * Reuses the existing (email, search_criteria) row if present (reactivating it), otherwise
+     * inserts a new one. This avoids violating the unique_user_search constraint when a user
+     * re-creates a monitor with the same criteria after it was deactivated.
+     */
+    private UserSearchPreferenceDto upsertPreference(String email,
+                                                     SearchCriteriaEntity criteriaEntity,
+                                                     boolean paymentEnabled,
+                                                     boolean notifyEnabled,
+                                                     Duration scheduleInterval) {
+        UserSearchPreferenceEntity preference = userSearchPreferenceRepository
+                .findByEmailAndSearchCriteriaId(email, criteriaEntity.getId())
+                .orElseGet(UserSearchPreferenceEntity::new);
+
         preference.setEmail(email);
         preference.setSearchCriteria(criteriaEntity);
         preference.setPaymentEnabled(paymentEnabled);
         preference.setNotifyEnabled(notifyEnabled);
         preference.setScheduleInterval(scheduleInterval.toString());  // Store as ISO 8601 string in DB
+        preference.setScheduleId(null);  // reset; set after the new schedule is created
         preference.setActive(true);
 
         UserSearchPreferenceEntity saved = userSearchPreferenceRepository.save(preference);
@@ -75,17 +91,7 @@ public class UserSearchPreferenceService {
         SearchCriteriaEntity criteriaEntity = searchCriteriaRepository.findById(searchCriteriaId)
                 .orElseThrow(() -> new IllegalArgumentException("Search criteria not found: " + searchCriteriaId));
 
-        // Create user preference
-        UserSearchPreferenceEntity preference = new UserSearchPreferenceEntity();
-        preference.setEmail(email);
-        preference.setSearchCriteria(criteriaEntity);
-        preference.setPaymentEnabled(paymentEnabled);
-        preference.setNotifyEnabled(notifyEnabled);
-        preference.setScheduleInterval(scheduleInterval.toString());
-        preference.setActive(true);
-
-        UserSearchPreferenceEntity saved = userSearchPreferenceRepository.save(preference);
-        return toDto(saved);
+        return upsertPreference(email, criteriaEntity, paymentEnabled, notifyEnabled, scheduleInterval);
     }
 
     /**
