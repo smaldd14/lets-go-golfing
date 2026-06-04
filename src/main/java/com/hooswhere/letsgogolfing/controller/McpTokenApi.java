@@ -1,5 +1,7 @@
 package com.hooswhere.letsgogolfing.controller;
 
+import com.hooswhere.letsgogolfing.dto.TokenIssueRequest;
+import com.hooswhere.letsgogolfing.dto.TokenIssueResponse;
 import com.hooswhere.letsgogolfing.dto.TokenResolveRequest;
 import com.hooswhere.letsgogolfing.dto.TokenResolveResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,4 +23,14 @@ public interface McpTokenApi {
     )
     @PostMapping("/resolve")
     TokenResolveResponse resolve(@RequestBody TokenResolveRequest request);
+
+    @Operation(
+            summary = "Issue a fresh MCP token",
+            description = "Rotates and returns a new per-user MCP token (revoking any prior token). " +
+                          "Requires an active subscription, otherwise returns 402. The raw token is " +
+                          "returned only here. Called by the connect-page worker after verifying a paid " +
+                          "Stripe checkout session."
+    )
+    @PostMapping("/issue")
+    TokenIssueResponse issue(@RequestBody TokenIssueRequest request);
 }

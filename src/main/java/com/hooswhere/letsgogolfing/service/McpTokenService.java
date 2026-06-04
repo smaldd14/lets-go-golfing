@@ -52,19 +52,6 @@ public class McpTokenService {
     }
 
     /**
-     * Issues a token only if the user has no active token yet. Used by the webhook so that
-     * redelivered checkout events don't churn the user's token. Returns the raw token when a
-     * new one was created, empty otherwise.
-     */
-    @Transactional
-    public Optional<String> issueTokenIfAbsent(String email) {
-        if (!mcpTokenRepository.findByEmailAndRevokedFalse(email).isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(issueToken(email));
-    }
-
-    /**
      * Resolves a raw token to its owner email, touching last_used_at.
      * Returns empty if the token is unknown or revoked.
      */

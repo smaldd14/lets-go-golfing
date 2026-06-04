@@ -28,6 +28,9 @@ public class SubscriptionEntity {
     @Column(name = "stripe_subscription_id", unique = true)
     private String stripeSubscriptionId;
 
+    @Column(name = "stripe_checkout_session_id")
+    private String stripeCheckoutSessionId;
+
     @Column(nullable = false, length = 32)
     private String status;
 
@@ -81,6 +84,14 @@ public class SubscriptionEntity {
 
     public void setStripeSubscriptionId(String stripeSubscriptionId) {
         this.stripeSubscriptionId = stripeSubscriptionId;
+    }
+
+    public String getStripeCheckoutSessionId() {
+        return stripeCheckoutSessionId;
+    }
+
+    public void setStripeCheckoutSessionId(String stripeCheckoutSessionId) {
+        this.stripeCheckoutSessionId = stripeCheckoutSessionId;
     }
 
     public String getStatus() {

@@ -118,12 +118,15 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     email VARCHAR(255) NOT NULL,
     stripe_customer_id VARCHAR(255),
     stripe_subscription_id VARCHAR(255) UNIQUE,
+    stripe_checkout_session_id VARCHAR(255),  -- durable id used to rebuild the /connect link
     status VARCHAR(32) NOT NULL,              -- active, trialing, past_due, canceled, incomplete...
     current_period_end TIMESTAMP,
     cancel_at_period_end BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_checkout_session_id VARCHAR(255);
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions (email);
 

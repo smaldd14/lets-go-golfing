@@ -42,7 +42,7 @@ public class StripeWebhookService {
     private final EmailService emailService;
     private final EmailTemplateService emailTemplateService;
     private final SubscriptionService subscriptionService;
-    private final McpTokenService mcpTokenService;
+    private final ConnectEmailService connectEmailService;
 
     public StripeWebhookService(UserSearchPreferenceService userSearchPreferenceService,
                                 SearchCriteriaRepository searchCriteriaRepository,
@@ -50,14 +50,14 @@ public class StripeWebhookService {
                                 EmailService emailService,
                                 EmailTemplateService emailTemplateService,
                                 SubscriptionService subscriptionService,
-                                McpTokenService mcpTokenService) {
+                                ConnectEmailService connectEmailService) {
         this.userSearchPreferenceService = userSearchPreferenceService;
         this.searchCriteriaRepository = searchCriteriaRepository;
         this.monitorCreationService = monitorCreationService;
         this.emailService = emailService;
         this.emailTemplateService = emailTemplateService;
         this.subscriptionService = subscriptionService;
-        this.mcpTokenService = mcpTokenService;
+        this.connectEmailService = connectEmailService;
     }
 
     /**
@@ -124,8 +124,9 @@ public class StripeWebhookService {
     }
 
     /**
-     * Handles a completed subscription checkout: records the subscription as active and issues an
-     * MCP token (emailed to the user) so they can connect an AI agent.
+     * Handles a completed subscription checkout: records the subscription as active (storing the
+     * checkout session id) and emails the user a link to the /connect page, where they issue their
+     * MCP token and finish setup.
      */
     private void processSubscriptionCheckout(Session session) {
         String email = session.getCustomerDetails() != null
@@ -143,11 +144,9 @@ public class StripeWebhookService {
 
         LOG.info("Processing subscription checkout for {} (subscription {})", email, subscriptionId);
 
-        subscriptionService.upsertFromStripe(subscriptionId, customerId, email, "active", null, false);
+        subscriptionService.upsertFromStripe(subscriptionId, customerId, session.getId(), email, "active", null, false);
 
-        // Only email a token if the user doesn't already have one (idempotent on redelivery).
-        mcpTokenService.issueTokenIfAbsent(email)
-                .ifPresent(token -> sendMcpTokenEmail(email, token));
+        connectEmailService.sendConnectEmail(email, session.getId());
     }
 
     /**
@@ -168,6 +167,7 @@ public class StripeWebhookService {
         subscriptionService.upsertFromStripe(
                 sub.getId(),
                 sub.getCustomer(),
+                null,                 // no checkout session on subscription events; existing row keeps it
                 null,                 // email not present on subscription events; existing row keeps it
                 status,
                 currentPeriodEnd(sub),
@@ -186,31 +186,6 @@ public class StripeWebhookService {
         return epochSeconds != null
                 ? LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneOffset.UTC)
                 : null;
-    }
-
-    private void sendMcpTokenEmail(String email, String token) {
-        String subject = "Your tee-time monitor access token";
-        String connectorUrl = "https://tee-time-mcp.smaldore.dev/mcp?token=" + token;
-        String textBody = """
-                You're all set! Your subscription is active.
-
-                To monitor tee times from an AI agent, connect to the tee-time MCP server.
-
-                Mobile / web (Claude app -> add connector), paste this URL:
-                %s
-
-                Coding agents / desktop, use a header instead:
-                Authorization: Bearer %s
-
-                Keep this token secret. It identifies your account.
-                """.formatted(connectorUrl, token);
-
-        boolean sent = emailService.sendEmail(email, subject, null, textBody);
-        if (sent) {
-            LOG.info("MCP token email sent to {}", email);
-        } else {
-            LOG.warn("Failed to send MCP token email to {}", email);
-        }
     }
 
     private void sendPaymentConfirmationEmail(String email, SearchCriteriaEntity criteria) {

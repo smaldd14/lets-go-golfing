@@ -42,6 +42,19 @@ public class SubscriptionService {
     }
 
     /**
+     * Returns the checkout session id of the user's active subscription, used to rebuild their
+     * /connect link for the "resend setup link" recovery flow. Empty if no active subscription
+     * or no stored session id.
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> activeCheckoutSessionId(String email) {
+        return mostRecent(email)
+                .filter(this::isActive)
+                .map(SubscriptionEntity::getStripeCheckoutSessionId)
+                .filter(id -> id != null && !id.isBlank());
+    }
+
+    /**
      * Creates or updates a subscription row keyed by Stripe subscription ID.
      * When email is null (e.g. subscription.updated/deleted events that lack it), the
      * existing email is preserved.
@@ -49,6 +62,7 @@ public class SubscriptionService {
     @Transactional
     public void upsertFromStripe(String stripeSubscriptionId,
                                  String stripeCustomerId,
+                                 String stripeCheckoutSessionId,
                                  String email,
                                  String status,
                                  LocalDateTime currentPeriodEnd,
@@ -66,6 +80,9 @@ public class SubscriptionService {
         sub.setStripeSubscriptionId(stripeSubscriptionId);
         if (stripeCustomerId != null) {
             sub.setStripeCustomerId(stripeCustomerId);
+        }
+        if (stripeCheckoutSessionId != null) {
+            sub.setStripeCheckoutSessionId(stripeCheckoutSessionId);
         }
         if (email != null) {
             sub.setEmail(email);
