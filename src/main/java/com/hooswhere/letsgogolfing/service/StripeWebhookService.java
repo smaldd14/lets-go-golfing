@@ -10,6 +10,8 @@ import com.hooswhere.letsgogolfing.notification.email.EmailTemplateService;
 import com.hooswhere.letsgogolfing.repository.SearchCriteriaRepository;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
+import com.stripe.model.Subscription;
+import com.stripe.model.SubscriptionItem;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import org.slf4j.Logger;
@@ -19,6 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,20 +38,26 @@ public class StripeWebhookService {
 
     private final UserSearchPreferenceService userSearchPreferenceService;
     private final SearchCriteriaRepository searchCriteriaRepository;
-    private final TeeTimeScheduleStarter scheduleStarter;
+    private final MonitorCreationService monitorCreationService;
     private final EmailService emailService;
     private final EmailTemplateService emailTemplateService;
+    private final SubscriptionService subscriptionService;
+    private final ConnectEmailService connectEmailService;
 
     public StripeWebhookService(UserSearchPreferenceService userSearchPreferenceService,
                                 SearchCriteriaRepository searchCriteriaRepository,
-                                TeeTimeScheduleStarter scheduleStarter,
+                                MonitorCreationService monitorCreationService,
                                 EmailService emailService,
-                                EmailTemplateService emailTemplateService) {
+                                EmailTemplateService emailTemplateService,
+                                SubscriptionService subscriptionService,
+                                ConnectEmailService connectEmailService) {
         this.userSearchPreferenceService = userSearchPreferenceService;
         this.searchCriteriaRepository = searchCriteriaRepository;
-        this.scheduleStarter = scheduleStarter;
+        this.monitorCreationService = monitorCreationService;
         this.emailService = emailService;
         this.emailTemplateService = emailTemplateService;
+        this.subscriptionService = subscriptionService;
+        this.connectEmailService = connectEmailService;
     }
 
     /**
@@ -65,6 +77,12 @@ public class StripeWebhookService {
         Session session = (Session) event.getDataObjectDeserializer().getObject().orElseThrow(
                 () -> new IllegalArgumentException("Could not deserialize checkout session from webhook")
         );
+
+        // Subscription checkouts (MCP access) and one-time checkouts (web UI) both arrive here.
+        if ("subscription".equals(session.getMode())) {
+            processSubscriptionCheckout(session);
+            return;
+        }
 
         // Extract data from session
         String email = session.getCustomerDetails().getEmail();
@@ -97,29 +115,77 @@ public class StripeWebhookService {
             return;
         }
 
-        // Create user search preference
-        UserSearchPreferenceDto userPref = userSearchPreferenceService.createPreferenceFromCriteriaId(
-                email,
-                searchCriteriaId,
-                false,  // payment_enabled = false (determines if workflow auto-pays on GolfNow)
-                true,   // notify_enabled = true
-                Duration.parse("PT5M")  // schedule_interval = 5 minutes
+        // Create the preference and start its monitoring schedule (shared with /api/monitors)
+        UserSearchPreferenceDto userPref = monitorCreationService.createFromCriteriaId(
+                email, searchCriteriaId, Duration.parse("PT5M"));
+
+        LOG.info("Started schedule {} for user {}", userPref.scheduleId(), email);
+        sendPaymentConfirmationEmail(email, searchCriteria);
+    }
+
+    /**
+     * Handles a completed subscription checkout: records the subscription as active (storing the
+     * checkout session id) and emails the user a link to the /connect page, where they issue their
+     * MCP token and finish setup.
+     */
+    private void processSubscriptionCheckout(Session session) {
+        String email = session.getCustomerDetails() != null
+                ? session.getCustomerDetails().getEmail()
+                : session.getCustomerEmail();
+        String customerId = session.getCustomer();
+        String subscriptionId = session.getSubscription();
+
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email not found in subscription checkout session");
+        }
+        if (subscriptionId == null || subscriptionId.isBlank()) {
+            throw new IllegalArgumentException("Subscription id not found in checkout session");
+        }
+
+        LOG.info("Processing subscription checkout for {} (subscription {})", email, subscriptionId);
+
+        subscriptionService.upsertFromStripe(subscriptionId, customerId, session.getId(), email, "active", null, false);
+
+        connectEmailService.sendConnectEmail(email, session.getId());
+    }
+
+    /**
+     * Handles customer.subscription.created/updated/deleted. Looks up the row by subscription id
+     * (no email on these events) and updates status / period end / cancellation.
+     */
+    @Transactional
+    public void processSubscriptionEvent(Event event) {
+        Subscription sub = (Subscription) event.getDataObjectDeserializer().getObject().orElseThrow(
+                () -> new IllegalArgumentException("Could not deserialize subscription from webhook")
         );
 
-        LOG.info("Created user search preference with ID: {}", userPref.id());
+        String status = "customer.subscription.deleted".equals(event.getType()) ? "canceled" : sub.getStatus();
+        boolean cancelAtPeriodEnd = Boolean.TRUE.equals(sub.getCancelAtPeriodEnd());
 
-        // Start Temporal schedule
-        var scheduleResponse = scheduleStarter.createTeeTimeSearchSchedule(userPref);
+        LOG.info("Processing {} for subscription {} (status {})", event.getType(), sub.getId(), status);
 
-        if (scheduleResponse.isPresent()) {
-            String scheduleId = scheduleResponse.get();
-            userSearchPreferenceService.updateScheduleId(userPref.id(), scheduleId);
-            LOG.info("Successfully started schedule {} for user {}", scheduleId, email);
-            sendPaymentConfirmationEmail(email, searchCriteria);
-        } else {
-            LOG.error("Failed to create schedule for user {}", email);
-            throw new RuntimeException("Failed to create monitoring schedule");
+        subscriptionService.upsertFromStripe(
+                sub.getId(),
+                sub.getCustomer(),
+                null,                 // no checkout session on subscription events; existing row keeps it
+                null,                 // email not present on subscription events; existing row keeps it
+                status,
+                currentPeriodEnd(sub),
+                cancelAtPeriodEnd);
+    }
+
+    private LocalDateTime currentPeriodEnd(Subscription sub) {
+        if (sub.getItems() == null) {
+            return null;
         }
+        List<SubscriptionItem> items = sub.getItems().getData();
+        if (items == null || items.isEmpty()) {
+            return null;
+        }
+        Long epochSeconds = items.get(0).getCurrentPeriodEnd();
+        return epochSeconds != null
+                ? LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneOffset.UTC)
+                : null;
     }
 
     private void sendPaymentConfirmationEmail(String email, SearchCriteriaEntity criteria) {

@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class StripeWebhookController implements StripeWebhookApi {
     private static final Logger LOG = LoggerFactory.getLogger(StripeWebhookController.class);
-    private static final String CHECKOUT_SESSION_COMPLETED = "checkout.session.completed";
 
     private final StripeWebhookService webhookService;
 
@@ -27,12 +26,14 @@ public class StripeWebhookController implements StripeWebhookApi {
 
             LOG.info("Received Stripe webhook event: {}", event.getType());
 
-            // Handle checkout.session.completed event
-            if (CHECKOUT_SESSION_COMPLETED.equals(event.getType())) {
-                webhookService.processCheckoutCompleted(event);
-                LOG.info("Successfully processed checkout completion");
-            } else {
-                LOG.info("Ignoring webhook event type: {}", event.getType());
+            switch (event.getType()) {
+                // One-time checkout (web UI) and subscription checkout (MCP) both land here;
+                // processCheckoutCompleted branches on session.mode.
+                case "checkout.session.completed" -> webhookService.processCheckoutCompleted(event);
+                case "customer.subscription.created",
+                     "customer.subscription.updated",
+                     "customer.subscription.deleted" -> webhookService.processSubscriptionEvent(event);
+                default -> LOG.info("Ignoring webhook event type: {}", event.getType());
             }
 
             return ResponseEntity.ok().build();

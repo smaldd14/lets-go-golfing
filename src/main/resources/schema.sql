@@ -110,3 +110,36 @@ CREATE TABLE IF NOT EXISTS email_templates (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Table: subscriptions
+-- Recurring Stripe subscriptions that gate access to the MCP server
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    stripe_customer_id VARCHAR(255),
+    stripe_subscription_id VARCHAR(255) UNIQUE,
+    stripe_checkout_session_id VARCHAR(255),  -- durable id used to rebuild the /connect link
+    status VARCHAR(32) NOT NULL,              -- active, trialing, past_due, canceled, incomplete...
+    current_period_end TIMESTAMP,
+    cancel_at_period_end BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_checkout_session_id VARCHAR(255);
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions (email);
+
+-- Table: mcp_tokens
+-- Per-user bearer tokens for authenticating to the MCP server.
+-- Only the SHA-256 hash of the token is stored; the raw token is shown once on issue.
+CREATE TABLE IF NOT EXISTS mcp_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    token_hash VARCHAR(128) NOT NULL UNIQUE,
+    revoked BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    last_used_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mcp_tokens_email ON mcp_tokens (email);

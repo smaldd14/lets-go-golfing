@@ -49,6 +49,9 @@ services:
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - NOWGOLF_API_KEY=${NOWGOLF_API_KEY}
 
+      # Frontend base URL used to build the /connect setup link in emails
+      - FRONTEND_URL=${FRONTEND_URL:-https://app.teetimemonitor.com}
+
       # JVM Configuration
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
     restart: unless-stopped
