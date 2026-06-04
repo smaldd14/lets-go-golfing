@@ -130,6 +130,11 @@ ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS stripe_checkout_session_id VA
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions (email);
 
+-- Lock down PostgREST/anon access: these rows hold Stripe customer ids and gate access.
+-- The app connects as the table owner (bypasses RLS); with RLS on and no policies,
+-- the Supabase anon/authenticated API roles get no access. Idempotent.
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+
 -- Table: mcp_tokens
 -- Per-user bearer tokens for authenticating to the MCP server.
 -- Only the SHA-256 hash of the token is stored; the raw token is shown once on issue.
@@ -143,3 +148,6 @@ CREATE TABLE IF NOT EXISTS mcp_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS idx_mcp_tokens_email ON mcp_tokens (email);
+
+-- Token hashes must never be reachable via the public API. Same rationale as subscriptions.
+ALTER TABLE mcp_tokens ENABLE ROW LEVEL SECURITY;
