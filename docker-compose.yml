@@ -47,6 +47,9 @@ services:
       # Stripe Configuration
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
 
+      # Frontend base URL used to build the /connect setup link in emails
+      - FRONTEND_URL=${FRONTEND_URL:-https://app.teetimemonitor.com}
+
       # JVM Configuration
       - JAVA_OPTS=${JAVA_OPTS:--Xmx512m}
     restart: unless-stopped
